@@ -66,14 +66,37 @@ del data
 __version__=[0,0,1,'newton: %i'%NewtonWorldGetVersion()]
 
 
-class NewtonWorld:
-    def __init__(self):
-        self._world=NewtonCreate()
-        self._selfvp = ffi.new_handle(self)
-        NewtonWorldSetUserData(self._world, self._selfvp)
-    def __del__(self):
-        NewtonDestroy(self._world)
-    def Update(self, td):
-        NewtonUpdate(self._world, td)
+class NewtonObject(object):
+    def search(self, key):
+        return [i for i in dir(self) if key in i]
+    @classmethod
+    def clsSearch(cls, key):
+        return [i for i in dir(cls) if key in i]
 
+def convert(args):
+    out = []
+    for arg in args:
+        if isinstance(arg, NewtonObject):
+            out.append(arg._wrapped)
+        else:
+            out.append(arg)
+    return out
 
+def wrap(f):
+    def wrapped(*a):
+        ret=f(*a)
+        if repr(ret).startswith("<cdata 'NewtonBody *'"):
+            ret = ffi.from_handle(NewtonBodyGetUserData(ret))
+        elif repr(ret).startswith("<cdata 'NewtonWorld *'"):
+            ret = ffi.from_handle(NewtonWorldGetUserData(ret))
+        elif repr(ret).startswith("<cdata 'NewtonJoint *'"):
+            ret = ffi.from_handle(NewtonJointGetUserData(ret))
+        elif repr(ret).startswith("<cdata 'NewtonCollision *'"):
+            ret = ffi.from_handle(NewtonCollisionGetUserData(ret))
+        elif repr(ret).startswith("<cdata 'void *'"):
+            try:
+                ret = ffi.from_handle(ret)
+            except:
+                pass
+        return ret
+    return wrapped
